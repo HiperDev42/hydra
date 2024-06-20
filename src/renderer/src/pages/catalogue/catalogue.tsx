@@ -37,9 +37,7 @@ export function Catalogue() {
   };
 
   useEffect(() => {
-    if (contentRef.current) contentRef.current.scrollTop = 0;
     setIsLoading(true);
-    setSearchResults([]);
 
     window.electron
       .getGames(24, cursor)
@@ -47,7 +45,7 @@ export function Catalogue() {
         return new Promise((resolve) => {
           setTimeout(() => {
             cursorRef.current = cursor;
-            setSearchResults(results);
+            setSearchResults((prev) => prev.concat(results));
             resolve(null);
           }, 500);
         });
@@ -55,7 +53,7 @@ export function Catalogue() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [dispatch, cursor, searchParams]);
+  }, [dispatch, cursor]);
 
   const handleNextPage = () => {
     const params = new URLSearchParams({
@@ -63,6 +61,15 @@ export function Catalogue() {
     });
 
     navigate(`/catalogue?${params.toString()}`);
+  };
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    const pos = scrollHeight - scrollTop - clientHeight;
+    console.debug("[Catalogue] scroll", pos);
+    if (pos <= 100) {
+      handleNextPage();
+    }
   };
 
   return (
@@ -92,14 +99,13 @@ export function Catalogue() {
         </Button>
       </section>
 
-      <section ref={contentRef} className={styles.content}>
+      <section
+        ref={contentRef}
+        className={styles.content}
+        onScroll={handleScroll}
+      >
         <section className={styles.cards}>
-          {isLoading &&
-            Array.from({ length: 12 }).map((_, index) => (
-              <Skeleton key={index} className={styles.cardSkeleton} />
-            ))}
-
-          {!isLoading && searchResults.length > 0 && (
+          {searchResults.length > 0 && (
             <>
               {searchResults.map((game) => (
                 <GameCard
@@ -110,6 +116,11 @@ export function Catalogue() {
               ))}
             </>
           )}
+
+          {isLoading &&
+            Array.from({ length: 24 }).map((_, index) => (
+              <Skeleton key={index} className={styles.cardSkeleton} />
+            ))}
         </section>
       </section>
     </SkeletonTheme>
